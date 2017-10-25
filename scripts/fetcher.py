@@ -100,10 +100,13 @@ def main(args=None):
                           db="biosample")
     res = None
     if biosample_uid is not None:
+        sys.stderr.write(
+            "linking the following biosample to sra: " + biosample_uid + "\n")
         sra_uid = elink(idkey=biosample_uid,
                         source_db="biosample",
                         db="sra")
         if sra_uid is not None:
+            sys.stderr.write("fetching summary for sra " + sra_uid + "\n")
             res, res_details = retrieve_annotation([sra_uid])
     if res is None:
         line = "{0}\t\t\t\t\t\t".format(args.input)
