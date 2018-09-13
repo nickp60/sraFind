@@ -3,7 +3,23 @@ import argparse
 from Bio import Entrez
 import xml.etree.ElementTree as ET
 
-Entrez.email = "Afsrtfgdsfg@bobxx.com"
+Entrez.email = "nickp60@gmail.com"
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        description="gets the SRA for a nucleotide accession")
+    parser.add_argument(
+        'input', metavar="input", help="nuccore accession")
+    parser.add_argument(
+        '-s',"--source_db",
+        # choices=["assembly", "bioproject", 'biosample', "nuccore"],
+        choices=["nuccore", "biosample"],
+        default="nuccore",
+        metavar="db", help="db to search")
+    parser.add_argument(
+        '-e',"--email",
+        help="email to use -- NCBI requires this", required=True)
+    return( parser.parse_args())
 
 
 # def search
@@ -31,9 +47,7 @@ def elink(idkey, db, source_db):
             # print(res)
         except IndexError:
             pass
-    if res is not None:
-        return(res)
-    return (None)
+    return res
 
 
 def retrieve_annotation(id_list):
@@ -78,26 +92,19 @@ def parseExpXml(xmlData):
     return resdict
 
 
-def get_args():
-    parser = argparse.ArgumentParser(
-        description="gets the SRA for a nucleotide accession")
-    parser.add_argument(
-        'input', metavar="input", help="nuccore accession")
-    parser.add_argument(
-        '-s',"--source_db",
-        # choices=["assembly", "bioproject", 'biosample', "nuccore"],
-        choices=["nuccore"],
-        default="nuccore",
-        metavar="db", help="db to search")
-    return( parser.parse_args())
-
 
 def main(args=None):
     if args is None:
         args = get_args()
-    biosample_uid = elink(idkey=args.input,
-                          source_db=args.source_db,
-                          db="biosample")
+    Entrez.email = args.email
+    if args.source_db != "biosample":
+        sys.stderr.write(
+            "linking the following " + args.source_db + " to biosample: " + args.input + "\n")
+        biosample_uid = elink(idkey=args.input,
+                              source_db=args.source_db,
+                              db="biosample")
+    else:
+        biosample_uid = args.input
     res = None
     if biosample_uid is not None:
         sys.stderr.write(
@@ -105,6 +112,9 @@ def main(args=None):
         sra_uid = elink(idkey=biosample_uid,
                         source_db="biosample",
                         db="sra")
+        print(elink(idkey=biosample_uid,
+                        source_db="biosample",
+                        db="sra"))
         if sra_uid is not None:
             sys.stderr.write("fetching summary for sra " + sra_uid + "\n")
             res, res_details = retrieve_annotation([sra_uid])
