@@ -3,7 +3,7 @@
 echo "raw hits processed: `ls output/ncbi_dump/ | wc -l`"
 echo "removing empty files"
 find ./output/ncbi_dump/ -empty -type f -delete
-nfile=`ls output/ncbi_dump/ | wc -l`
+nfiles=$(ls output/ncbi_dump/ | wc -l)
 echo "non-empty files in output/ncbi_dump: $nfiles"
 
 echo "removing old tar"
