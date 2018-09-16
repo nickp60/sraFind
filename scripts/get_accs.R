@@ -82,6 +82,8 @@ fetch_cmds_path <- file.path(args[2], "sraFind-fetch-cmds.txt")
 print("Writing out fetching commands")
 write.table(row.names = F, col.names = F, fetch_cmds, quote = F,
             file = fetch_cmds_path)
+
+stop()
 print(paste0("Running fetch commands using ", cores, " cores"))
 system(paste0("parallel -j ", cores, " --progress :::: ", fetch_cmds_path))
 print("collecting all the hits")

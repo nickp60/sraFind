@@ -29,7 +29,6 @@ The main script for fetching data is `./scripts/get_accs.R`, which:
 - saving the output
 
 ```
-#$
 #    USAGE: Rscript get_accs.R <"Chromosome|Complete Genome|Contig|Scaffold|All> output/dir/ n_cores_to_use
 Rscript scripts/get_accs.R All ./output/ 16
 
@@ -46,3 +45,9 @@ Who are we kidding, you're probably not going to use /my/ plotting scripts are y
 # Caveats
 
 Don't put too much faith in the nuccore first chromosome columns. This is created with a bunch of regexes of the "replicon" column, which is filled with bad metadata. This also ignores the genomes in the list where the chromosome is categorized as a plasmid; there are about 100 of these that list no chromosome, but a megabase-scale plasmid. If someone couldn't get that bit of metadata sorted out, I am hesitent to trust their sequence...
+
+
+
+conda create -n sraFind entrez-direct r-base parallel r-r.utils  perl-lwp-protocol-https
+sed s/"tries < 3"/"tries < 2"/g ~/miniconda3/envs/sraFind/bin/old_edirect.pl > ~/miniconda3/envs/sraFind/bin/edirect.pl
+cp ~/miniconda3/bin/edirect.pl ~/miniconda3/bin/old_edirect.pl ; sed s/"tries < 3"/"tries < 2"/g ~/miniconda3/bin/old_edirect.pl | sed s/"sleep 3"/"sleep 0"/g - > ~/miniconda3/bin/edirect.pl
