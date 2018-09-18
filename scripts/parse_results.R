@@ -1,12 +1,15 @@
 args = commandArgs(T)
 
 # test args
-# args=c("Chromosome", "./test/", "./output/ncbi_dump")
+# args=c("Complete Genome", "./test/", "./output/ncbi_dump")
 # setwd("~/GitHub/sraFind")
-
+all_statuses <- c("Complete Genome","Chromosome", "Contig", "Scaffold", "All")
+print("Options for filtering:")
+print(all_statuses)
+print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
 if (!dir.exists(args[2])) dir.create(args[2])
 if(!args[1] %in% c("Chromosome", "Complete Genome","CompleteGenome", "Contig", "Scaffold", "All")){
-  stop('USAGE: Rscript parse_results.R <"Chromosome|Complete Genome|Contig|Scaffold|All> output/dir/ /path/to/ncbi_dump/')
+  stop('USAGE: Rscript parse_results.R <Chromosome|Complete Genome|Contig|Scaffold|All> output/dir/ /path/to/ncbi_dump/')
 } else{
   status = gsub(" ", "", args[1])
 }
@@ -72,14 +75,19 @@ db_files_of_interest <- db_files[db_files %in% db$BioSample.Accession]
 
 biosample_hits <- file.path(args[2], "hits.txt")
 
-print(paste("Of the ", nrow(db), "biosample, ", length(db_files_of_interest), " hits are present in the current database",nrow(raw) ))
+print(paste0("Of the ", nrow(db), " biosamples of level ", status,  ", ", length(db_files_of_interest), 
+            " have SRA links in the current database of ",nrow(raw) ))
 
-
+if (file.exists(biosample_hits)){
+  print("removing old hits file")
+  file.remove(biosample_hits)
+}
 print("creating Entrez parsing cmds")
 parse_cmds <- paste0("cat ", file.path(db_path, db_files_of_interest), " | ",
                      'xtract ', # use NCBI's tool get tabular data from XML, such as the following colimns
                      '-pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
                      ' >> ' , biosample_hits)
+print("executing Entrez commands to extract relavant info from database")
 for (i in parse_cmds) system(i)
 
 print("reading hits file")

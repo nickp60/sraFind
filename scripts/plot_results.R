@@ -3,7 +3,7 @@ require(dplyr)
 args = commandArgs(T)
 
 # test args
-#args=c("./parse/sraFind-Chromosome-biosample-with-SRA-hits.txt", "./output/plotter/")
+#args=c("./parsed/sraFind-CompleteGenome-biosample-with-SRA-hits.txt", "./output/plotter/")
 # setwd("~/GitHub/sraFind")
 
 if (!dir.exists(args[2])) dir.create(args[2])
@@ -37,11 +37,14 @@ str(results)
 
 ptitle <- paste0("'", level,"'-status prokaryotic genomes from NCBI as of ", Sys.Date())
 psubtitle <-paste0("From the ", nrow(results), " ", level, "-level assemblies with nuccore entries")
-
+if (level %in% c("CompleteGenome", "Chromosome")){
+  psubtitle <- paste0(psubtitle, "\nNote: ", level, " includes both 'Complete Genome' and 'Chromosome' levels")
+  
+}
 pdf(file=file.path(args[2], paste0(Sys.Date(), "-results-totals.pdf")), width = 5, height = 4)
 ggplot(results, aes(exist)) + geom_bar(width = .5) + coord_flip() +
-  labs(title=title,
-       subtitle=subtitle, 
+  labs(title=ptitle,
+       subtitle=psubtitle, 
        x="SRA Accession Found", 
   y="Count")
 dev.off()
