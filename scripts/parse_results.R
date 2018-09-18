@@ -12,6 +12,7 @@ if(!args[1] %in% c("Chromosome", "Complete Genome","CompleteGenome", "Contig", "
   stop('USAGE: Rscript parse_results.R <Chromosome|Complete Genome|Contig|Scaffold|All> output/dir/ /path/to/ncbi_dump/')
 } else{
   status = gsub(" ", "", args[1])
+  print(paste("Level of interest:", status))
 }
 db_path = args[3]
 if (!dir.exists(db_path)) stop(paste0("datababse directory ", db_path, "not found!"))
