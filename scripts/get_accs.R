@@ -21,7 +21,7 @@ dir.create(ncbi_dir)
 fetch_cmds <- paste0("if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession), " ] ; then ",
   'esearch -db biosample -query ',  raw$BioSample.Accession, ' | ', # get the biosample record
   'elink -target sra | ',  # link it to the SRA database (or try to, it usually fails)
-  'efilter -query "WGS[STRATEGY]" |', # select only WGS datasets, to avoid transcriptomics
+  'efilter -query "WGS[STRATEGY] AND Genomic[SOURCE]" |', # select only WGS datasets, to avoid transcriptomics
   'efetch -format docsum > ', file.path(ncbi_dir, raw$BioSample.Accession), " ; fi") # get the summary as XML
 
 
