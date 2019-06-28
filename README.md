@@ -17,9 +17,11 @@ We chose to include the results in the repo to allow for quicker rerunning. No e
 - R
 
 Using a conda env might make things easier, just be aware that the cmds called my `parallel` will not use that env without some adjusting.
+
 ```
-conda create -n sraFind entrez-direct r-base parallel r-r.utils  perl-lwp-protocol-https
+conda create -n sraFind r-base parallel r-r.utils perl-io-socket-ssl perl-net-ssleay perl-lwp-protocol-https entrez-direct
 ```
+
 
 # Running sraFind
 ## creating
@@ -30,8 +32,8 @@ The script for fetching data is `./scripts/get_accs.R`, which:
 - writing out a file of all the commands to run
 
 ```
-#    USAGE: Rscript get_accs.R <"Chromosome|Complete Genome|Contig|Scaffold|All> /output/dir/ n_cores_to_use
-Rscript scripts/get_accs.R All ./output/ 16
+#    USAGE: Rscript get_accs.R /output/dir/ 
+Rscript scripts/get_accs.R ./output/
 
 ```
 This will write out a file called `sraFind-fetch-cmds.txt`, containing the entrez calls.  Run this will `parallel` as follows:
@@ -43,7 +45,16 @@ parallel -j <ncores> --progress :::: sraFind-fetch-cmds.txt
 If you are trying to get the full dataset of all ~150 < prokaryotic genomes, you should consider using a computing cluster or being patient.  We include a `scripts/sge_run.sh` as a template script for how to execute on a cluster with SGE.  
 
 ## Updating the database
-When updating the database, ensure to pull the latest version of this repo from git, which includes the current database as a tar'ed `./output/ncbi_dump`.  Uncompress this, then run `Rscript get_accs.R All ./output/ <ncores>`. This will look through `prokaryotes.txt` and try to get the XML links for any biosample not in the database. Keep in mind that this will not get updates to Biosamples for which a link has already been saved.
+In short:
+```
+Rscript get_accs.R ./output/
+# make sure you have an api key set:
+parallel -j <ncores> --progress :::: output/sraFind-fetch-cmds.txt
+Rscript scripts/parse_results.R 'Complete Genome' ./results/ ./output/ncbi_dump/
+./scripts/commit.sh
+``
+
+When updating the database, ensure to pull the latest version of this repo from git, which includes the current database as a tar'ed `./output/ncbi_dump`.  Uncompress this, then run `Rscript get_accs.R ./output/`. This will look through `prokaryotes.txt` and try to get the XML links for any biosample not in the database. Keep in mind that this will not get updates to Biosamples for which a link has already been saved.
 
 Once this has been completed, use the `scripts/commit.sh` to remove empty files, commit the resulting compressed database, and clean up.
 
@@ -61,7 +72,7 @@ Sometimes there are parsing errors if a field is missing from the XML files.  We
 
 ## Plotting parsed results
 
-But who are we kidding, you're probably not going to use /my/ plotting scripts are you?  `parse_restuls.R` saved a nice csv that you can use with your plotting library of choice.
+But who are we kidding, you're probably not going to use /my/ plotting scripts are you?  `parse_results.R` saved a nice csv that you can use with your plotting library of choice.
 
 
 
