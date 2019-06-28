@@ -50,11 +50,13 @@ In short:
 Rscript get_accs.R ./output/
 # make sure you have an api key set:
 parallel -j <ncores> --progress :::: output/sraFind-fetch-cmds.txt
-Rscript scripts/parse_results.R 'Complete Genome' ./results/ ./output/ncbi_dump/
+Rscript scripts/parse_results.R 'Complete Genome' ./results/ ./output/ncbi_dump_clean/
 ./scripts/commit.sh
 ``
 
-When updating the database, ensure to pull the latest version of this repo from git, which includes the current database as a tar'ed `./output/ncbi_dump`.  Uncompress this, then run `Rscript get_accs.R ./output/`. This will look through `prokaryotes.txt` and try to get the XML links for any biosample not in the database. Keep in mind that this will not get updates to Biosamples for which a link has already been saved.
+When updating the database, ensure to pull the latest version of this repo from git, which includes the current database as a tar'ed `./output/ncbi_dump`.  Uncompress this, then run `Rscript get_accs.R ./output/`. This will look through `prokaryotes.txt` and try to get the XML links for any biosample not in the database. Keep in mind that this will not get updates to Biosamples for which a link has already been saved.  Also keep in mind NCBI's API limit: no more than 3 per second, or 10 per second with an API key.  So this can take a long time.
+
+Then, the parse_results.R script extracts the relavent data from the XML into a pretty tabular format.
 
 Once this has been completed, use the `scripts/commit.sh` to remove empty files, commit the resulting compressed database, and clean up.
 

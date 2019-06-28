@@ -89,8 +89,11 @@ parse_cmds <- paste0("cat ", file.path(db_path, db_files_of_interest), " | ",
                      '-pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
                      ' >> ' , biosample_hits)
 print("executing Entrez commands to extract relavant info from database")
-for (i in parse_cmds) system(i)
-
+ncmds <- length(parse_cmds)
+for (i in 1:length(parse_cmds)){
+    if (i %% 1000 == 0){print(paste("running cmd", i, "of", ncmds))}
+    system(parse_cmds[i])
+}
 print("reading hits file")
 
 
@@ -156,7 +159,8 @@ write.table(row.names = F, col.names = T,  hits[bad_bioproject, ], sep = "\t",
 
 all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Status", "nuccore_first_chrom", "Release.Date", "Modify.Date")], hits, by.x="BioSample.Accession", by.y="biosample", all.x = T)
 print("writing out parsed")
-write.table(row.names = F, col.names = T, all_biosamples, sep = "\t",
+# order them to make diffing easier
+write.table(row.names = F, col.names = T, all_biosamples[order(all_biosamples$BioSample.Accession), ], sep = "\t",
             file = file.path(args[2], paste0("sraFind-", status, "-biosample-with-SRA-hits.txt")))
 
 
