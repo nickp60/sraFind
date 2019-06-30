@@ -1,9 +1,29 @@
 require(ggplot2)
 require(dplyr)
+###########################
+
+ggplot2::theme_set(ggplot2::theme_minimal() + ggplot2::theme(
+  rect = element_rect(fill = "transparent"),
+  #plot.background = element_rect(fill = "#FAFAFA", color=NA),
+  plot.background = element_rect(fill = "transparent", color=NA),
+  #axis.text = element_text(size=12),
+  #axis.title  = element_text(size=16),
+  panel.grid.minor.x = element_blank(),
+  #title = element_text(size=20),
+  # legend.text =  element_text(size=12), 
+  #plot.subtitle = element_text(size=12, colour = "grey60")
+  plot.subtitle = element_text(colour = "grey60")
+)
+)
+
+
+#########################
+
+
 args = commandArgs(T)
 
 # test args
-#args=c("./parsed/sraFind-CompleteGenome-biosample-with-SRA-hits.txt", "./output/plotter/")
+#args=c("./results/sraFind-CompleteGenome-biosample-with-SRA-hits.txt", "./tmp/")
 # setwd("~/GitHub/sraFind")
 
 if (!dir.exists(args[2])) dir.create(args[2])
@@ -41,17 +61,19 @@ if (level %in% c("CompleteGenome", "Chromosome")){
   psubtitle <- paste0(psubtitle, "\nNote: ", level, " includes both 'Complete Genome' and 'Chromosome' levels")
   
 }
-pdf(file=file.path(args[2], paste0(Sys.Date(), "-results-totals.pdf")), width = 5, height = 4)
+pdf(file=file.path(args[2], paste0(Sys.Date(), "-results-totals.pdf")), width = 9, height = 5)
 ggplot(results, aes(exist)) + geom_bar(width = .5) + coord_flip() +
+  scale_y_continuous(expand=c(0, 0)) +
   labs(title=ptitle,
        subtitle=psubtitle, 
        x="SRA Accession Found", 
   y="Count")
 dev.off()
-pdf(file=file.path(args[2], paste0(Sys.Date(), "-results-byyear.pdf")), width = 5, height = 5)
+pdf(file=file.path(args[2], paste0(Sys.Date(), "-results-byyear.pdf")), width = 9, height = 5)
 ggplot(results, aes(x=year, fill=exist)) + 
   geom_bar(position="dodge") +# coord_flip() +
     scale_fill_manual(values=c("grey60", "darkgreen"))+
+  scale_y_continuous(expand=c(0, 0)) +
   theme(axis.text.x = element_text(angle=65, hjust = 1))+
   labs(title=ptitle,
        subtitle=psubtitle, 
@@ -63,8 +85,9 @@ dev.off()
 # this gets used for the readme
 png(file=file.path("results-byyear.png"), width = 7, height = 5, units = "in", res = 300)
 ggplot(results, aes(x=year, fill=exist)) + 
-  geom_bar(position="dodge") +# coord_flip() +
+  geom_bar(position="dodge", width=.8) +# coord_flip() +
   scale_fill_manual(values=c("grey60", "darkgreen"))+
+  scale_y_continuous(expand=c(0, 0)) +
   theme(axis.text.x = element_text(angle=65, hjust = 1))+
   labs(title=ptitle,
        subtitle=psubtitle, 
