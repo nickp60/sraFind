@@ -42,7 +42,7 @@ This will write out a file called `sraFind-fetch-cmds.txt`, containing the entre
 parallel -j <ncores> --progress :::: sraFind-fetch-cmds.txt
 ```
 
-If you are trying to get the full dataset of all ~150 < prokaryotic genomes, you should consider using a computing cluster or being patient.  We include a `scripts/sge_run.sh` as a template script for how to execute on a cluster with SGE.
+If you are trying to get the full dataset of all prokaryotic genomes, you should consider using a computing cluster or being patient.  We include a `scripts/sge_run.sh` as a template script for how to execute on a cluster with SGE.
 
 ## Updating the database
 In short:
