@@ -1,15 +1,16 @@
 args = commandArgs(T)
 
 # test args
-# args=c("Complete Genome", "./test/", "./output/ncbi_dump")
+# args=c("Complete Genome", "./tmpO/", "./output/ncbi_dump")
 # setwd("~/GitHub/sraFind")
-all_statuses <- c("Complete Genome","Chromosome", "Contig", "Scaffold", "All")
+all_statuses <- c("Complete", "Draft", "All")
 print("Options for filtering:")
 print(all_statuses)
 print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
+print("Note that 'Contig' and 'Scaffold' are grouped together")
 if (!dir.exists(args[2])) dir.create(args[2])
-if(!args[1] %in% c("Chromosome", "Complete Genome","CompleteGenome", "Contig", "Scaffold", "All")){
-  stop('USAGE: Rscript parse_results.R <Chromosome|Complete Genome|Contig|Scaffold|All> output/dir/ /path/to/ncbi_dump/')
+if(!args[1] %in% c("Complete Genome", "Draft", "All")){
+  stop('USAGE: Rscript parse_results.R <Complete|Draft|All> output/dir/ /path/to/ncbi_dump/')
 } else{
   status = gsub(" ", "", args[1])
   print(paste("Level of interest:", status))
@@ -17,7 +18,7 @@ if(!args[1] %in% c("Chromosome", "Complete Genome","CompleteGenome", "Contig", "
 db_path = args[3]
 if (!dir.exists(db_path)) stop(paste0("datababse directory ", db_path, "not found!"))
 if (length(dir(db_path)) == 0) stop(paste0("datababse directory ", db_path, "is empty!"))
-                               
+
 
 destfile="prokaryotes.txt"
 if(!file.exists(destfile)){
@@ -50,14 +51,14 @@ db[, "nuccore_first_chrom"] <- ifelse(
 # # this one could be reopeated with a strip to keep selecting the last of them. You run into issues with CM008567.1-CM008588.1, cause some people just gotta be special
 # raw$addn_last <- gsub(".*chromosome .+?:(.*?)[/.*?;$]", "\\1",  raw$addn_no_plasmids[60])
 
-if (status %in% c("CompleteGenome", "Chromosome")){
+if (status == "Complete"){
   accs_col = "nuccore_first_chrom"
   db<- db[db$nuccore_first_chrom != "",]
 } else if (status == "All"){
   accs_col = "Assembly.Accession"
-} else {
+} else if(status == "Draft"){
   accs_col = "Assembly.Accession"
-  db <- db[db$Status == status, ]
+  db <- db[db$Status %in% c("Contig", "Scaffold"), ]
 }
 
 print(paste("writing out", nrow(db), accs_col, "of the full", nrow(raw) ))
@@ -71,12 +72,12 @@ nice_column_no_run_headers = c("biosample",  "id", "title", "platform",  "instru
 ##
 print("determining which biosamples have hits in the DB")
 db_files <- dir(db_path)
-db_files_of_interest <- db_files[db_files %in% db$BioSample.Accession]
+db_files_of_interest <- db_files[gsub("(.*)_(.*)", "\\2", db_files) %in% db$BioSample.Accession]
 
 
 biosample_hits <- file.path(args[2], "hits.txt")
 
-print(paste0("Of the ", nrow(db), " biosamples of level ", status,  ", ", length(db_files_of_interest), 
+print(paste0("Of the ", nrow(db), " biosamples of level ", status,  ", ", length(db_files_of_interest),
             " have SRA links in the current database of ",nrow(raw) ))
 
 if (file.exists(biosample_hits)){
@@ -132,19 +133,19 @@ for (i in c(1:nrow(hits))){
   hits[i, "run_SRAs"] <- paste(table_b[i, c(1:nSRAs)], collapse=",")
   hits[i, "run_sizes"] <- paste(table_b[i, c((nSRAs + 1):(2*nSRAs))], collapse=",")
   hits[i, "run_publicities"] <- paste(table_b[i, c((2* nSRAs + 1):(3*nSRAs))], collapse=",")
-  
+
 }
 
 print("checking for missing fields")
 ####  here we desal with issues where the organisms scientific name was mangled/missing, resulting in a missing column.  Luckily, this only happens in a few cases, but we do need to bump these out a row.  We can (semi) easily detect them by their scientific name being numeric
 bad_sci_names <- hits[grepl("^\\d*$", hits$organism_ScientificName), ]
-#remove those from the full dataset 
+#remove those from the full dataset
 hits <- hits[!grepl("^\\d*$", hits$organism_ScientificName), ]
 # put this back together with "unknown" as sci name
 bad_sci_names <- cbind(bad_sci_names[, c(1:6)], rep("Unknown", nrow(bad_sci_names)), bad_sci_names[, c(7:14), ])
 # fix borked col names
 colnames(bad_sci_names) <- c(nice_column_no_run_headers, "nSRAs", "run_SRAs", "run_sizes","run_publicities")
-# put humpty back together 
+# put humpty back together
 hits <- rbind(hits, bad_sci_names)
 
 # did we miss any?
@@ -162,5 +163,3 @@ print("writing out parsed")
 # order them to make diffing easier
 write.table(row.names = F, col.names = T, all_biosamples[order(all_biosamples$BioSample.Accession), ], sep = "\t",
             file = file.path(args[2], paste0("sraFind-", status, "-biosample-with-SRA-hits.txt")))
-
-
