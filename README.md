@@ -28,7 +28,6 @@ conda create -n sraFind r-base parallel r-r.utils perl-io-socket-ssl perl-net-ss
 The script for fetching data is `./scripts/get_accs.R`, which:
 
 - orchestrates the downloading of a `prokaryotes.txt` file, if one is not found in the current working directory
-- filtering by genome completeness
 - writing out a file of all the commands to run
 
 ```
@@ -36,11 +35,12 @@ The script for fetching data is `./scripts/get_accs.R`, which:
 Rscript scripts/get_accs.R ./output/
 
 ```
-This will write out a file called `sraFind-fetch-cmds.txt`, containing the entrez calls.  Run this will `parallel` as follows:
+This will write out a file called `sraFind-fetch-cmds.txt`, containing the entrez calls.  make sure you have `NCBI_API_KEY` set, and then  `parallel` as follows:
 
 ```
 parallel -j <ncores> --progress :::: sraFind-fetch-cmds.txt
 ```
+(use j < 10, as API limits requests to 10 per s with a key).
 
 If you are trying to get the full dataset of all prokaryotic genomes, you should consider using a computing cluster or being patient.  We include a `scripts/sge_run.sh` as a template script for how to execute on a cluster with SGE.
 
