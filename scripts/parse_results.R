@@ -1,26 +1,24 @@
 args = commandArgs(T)
 
 # test args
-# args=c("Complete Genome", "./tmpO/", "./output/ncbi_dump")
+# args=c("./tmp5/ncbi_dump")
 # setwd("~/GitHub/sraFind")
 all_statuses <- c("Complete", "Draft", "All")
-print("Options for filtering:")
-print(all_statuses)
-print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
-print("Note that 'Contig' and 'Scaffold' are grouped together")
+#print("Options for filtering:")
+#print(all_statuses)
+#print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
+#print("Note that 'Contig' and 'Scaffold' are grouped together")
 if (!dir.exists(args[2])) dir.create(args[2])
-if(!args[1] %in% c("Complete Genome", "Draft", "All")){
-  stop('USAGE: Rscript parse_results.R <Complete|Draft|All> output/dir/ /path/to/ncbi_dump/')
-} else{
-  status = gsub(" ", "", args[1])
-  print(paste("Level of interest:", status))
+if( len(args) != 1 ){
+  stop('USAGE: Rscript parse_results.R /path/to/ncbi_dump/')
 }
-db_path = args[3]
-if (!dir.exists(db_path)) stop(paste0("datababse directory ", db_path, "not found!"))
-if (length(dir(db_path)) == 0) stop(paste0("datababse directory ", db_path, "is empty!"))
+db_path <- args[1]
+results_path = file.path(dirname(db_path), "parsed")
+if (!dir.exists(db_path)) stop(paste0("datababse directory ", db_path, " not found!"))
+if (length(dir(db_path)) == 0) stop(paste0("datababse directory ", db_path, " is empty!"))
 
 
-destfile="prokaryotes.txt"
+destfile <-  "prokaryotes.txt"
 if(!file.exists(destfile)){
   system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/GENOME_REPORTS/prokaryotes.txt")
 }
@@ -50,7 +48,7 @@ db[, "nuccore_first_chrom"] <- ifelse(
 # raw$addn_no_plasmids <- gsub("plasmid.*$", "",  raw$addn_chroms)
 # # this one could be reopeated with a strip to keep selecting the last of them. You run into issues with CM008567.1-CM008588.1, cause some people just gotta be special
 # raw$addn_last <- gsub(".*chromosome .+?:(.*?)[/.*?;$]", "\\1",  raw$addn_no_plasmids[60])
-
+status <- "All"
 if (status == "Complete"){
   accs_col = "nuccore_first_chrom"
   db<- db[db$nuccore_first_chrom != "",]
@@ -61,9 +59,10 @@ if (status == "Complete"){
   db <- db[db$Status %in% c("Contig", "Scaffold"), ]
 }
 
-print(paste("writing out", nrow(db), accs_col, "of the full", nrow(raw) ))
-write.table(row.names = F, col.names = T, db, sep = "\t",
-            file = file.path(args[2], paste0("sraFind-", status, "-prokaryotes.txt")))
+# print(paste("writing out", nrow(db), accs_col, "of the full", nrow(raw) ))
+# write.table(row.names = F, col.names = T, db, sep = "\t",
+#             file = file.path(args[2], paste0("sraFind-", status, "-prokaryotes.txt")))
+# 
 
 ################################################################################
 ncbi_columns = c("Biosample", "Id", "Title", "Platform", "@instrument_model",  "Study@acc", "Organism@ScientificName", "Organism@taxid", "Bioproject", "CreateDate", "UpdateDate", "Run@acc", "Run@total_bases", "Run@is_public")
@@ -71,11 +70,11 @@ nice_column_no_run_headers = c("biosample",  "id", "title", "platform",  "instru
 
 ##
 print("determining which biosamples have hits in the DB")
-db_files <- dir(db_path)
-db_files_of_interest <- db_files[gsub("(.*)_(.*)", "\\2", db_files) %in% db$BioSample.Accession]
+db_files <- dir(db_path, recursive = T)
+db_files_of_interest <- db_files[gsub("(.*)/(.*)", "\\2", db_files) %in% db$BioSample.Accession]
 
 
-biosample_hits <- file.path(args[2], "hits.txt")
+biosample_hits <- file.path(results_path, "hits.txt")
 
 print(paste0("Of the ", nrow(db), " biosamples of level ", status,  ", ", length(db_files_of_interest),
             " have SRA links in the current database of ",nrow(raw) ))
@@ -85,14 +84,15 @@ if (file.exists(biosample_hits)){
   file.remove(biosample_hits)
 }
 print("creating Entrez parsing cmds")
-parse_cmds <- paste0("cat ", file.path(db_path, db_files_of_interest), " | ",
-                     'xtract ', # use NCBI's tool get tabular data from XML, such as the following colimns
+parse_cmds <- paste0("OLDIFS=$IFS; IFS=$'\n'; tmpnm=`cat ", file.path(db_path, dirname(db_files_of_interest), "masterrec"), " |tr -d '\n'` ; for line in ",
+                     '` cat ',  file.path(db_path, db_files_of_interest), '| xtract ',  # use NCBI's tool get tabular data from XML, such as the following colimns
                      '-pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
-                     ' >> ' , biosample_hits)
+                     '` ;  do echo "${tmpnm}\t${line}" >> ' , biosample_hits, "; done;  IFS=$OLDIFS")
 print("executing Entrez commands to extract relavant info from database")
 ncmds <- length(parse_cmds)
 for (i in 1:length(parse_cmds)){
-    if (i %% 1000 == 0){print(paste("running cmd", i, "of", ncmds))}
+    if (i %% 1000 == 0 ){print(paste("running cmd", i, "of", ncmds))}
+  #print(parse_cmds[i])
     system(parse_cmds[i])
 }
 print("reading hits file")
@@ -121,7 +121,8 @@ colnames(hits) <- nice_column_no_run_headers
 # sort out the remaining columns
 table_b <-raw_hits[, c((length(nice_column_no_run_headers) + 1) : ncol(raw_hits))]
 hits$nSRAs = as.integer(rowSums("" != table_b & !is.na(table_b)) / 3)
-
+#               
+#####    ---- Me ----                                 ----- Also Me  -----
 # dont do it!  There must be a better way!
 #                                                     Oh, Im doing it
 # but you know the speed tradeoffs of loops in R!
@@ -154,12 +155,18 @@ bad_bioproject <- !grepl("^PRJ.*$", hits$bioproject)
 print("writing dodgy rows to parsing_errors.txt")
 
 hits <- hits[!bad_bioproject, ]
+
+# add in accession name
+fs <- data.frame(raw=db_files, stringsAsFactors = F)
+fs$biosample <- gsub("(.*)_(.*)", "\\2", fs$raw)
+fs$WGS_record <- gsub("(.*)_(.*)", "\\1", fs$raw)
+hit <- merge(hits,fs, by="biosample")
 write.table(row.names = F, col.names = T,  hits[bad_bioproject, ], sep = "\t",
-            file = file.path(args[2], paste0("parsing_errors.txt")))
+            file = file.path(results_path, paste0("parsing_errors.txt")))
 
 
 all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Status", "nuccore_first_chrom", "Release.Date", "Modify.Date")], hits, by.x="BioSample.Accession", by.y="biosample", all.x = T)
 print("writing out parsed")
 # order them to make diffing easier
 write.table(row.names = F, col.names = T, all_biosamples[order(all_biosamples$BioSample.Accession), ], sep = "\t",
-            file = file.path(args[2], paste0("sraFind-", status, "-biosample-with-SRA-hits.txt")))
+            file = file.path(results_path, paste0("sraFind-", status, "-biosample-with-SRA-hits.txt")))
