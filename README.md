@@ -88,5 +88,5 @@ Don't put too much faith in the nuccore first chromosome columns. This is create
 We cheat.  Because Entrez will retry links that fail (and most assemblies dont have SRAs, so most links fail), we use the following two sed one-liners to modify the `edirect.pl` script to (a)) change from 3 retries to 2, and (b) remove the 3 second sleep cmds from those retries.
 ```
 cp ~/miniconda3/bin/edirect.pl ~/miniconda3/bin/old_edirect.pl
-sed s/"tries < 3"/"tries < 2"/g ~/miniconda3/bin/old_edirect.pl | sed s/"sleep 3"/"sleep 0"/g - > ~/miniconda3/bin/edirect.pl
+sed s/"tries < 3"/"tries < 2"/g ~/miniconda3/bin/old_edirect.pl | sed s/"sleep 3"/"sleep 0"/g > ~/miniconda3/bin/edirect.pl
 ```
