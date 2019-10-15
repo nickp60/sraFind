@@ -9,7 +9,7 @@ all_statuses <- c("Complete", "Draft", "All")
 #print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
 #print("Note that 'Contig' and 'Scaffold' are grouped together")
 if (!dir.exists(args[2])) dir.create(args[2])
-if( len(args) != 1 ){
+if( length(args) != 1 ){
   stop('USAGE: Rscript parse_results.R /path/to/ncbi_dump/')
 }
 db_path <- args[1]

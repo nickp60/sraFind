@@ -3,9 +3,10 @@
 echo "raw hits processed: `ls output/ncbi_dump/ | wc -l`"
 echo "copying results for archive"
 cp -r  output/ncbi_dump/ output/ncbi_dump_clean/
-echo "removing empty files"
+echo "removing empty files and directories"
 find ./output/ncbi_dump_clean/ -empty -type f -delete
-nfiles=$(ls output/ncbi_dump_clean/ | wc -l)
+find ./output/ncbi_dump_clean/ -empty -type d -delete
+nfiles=$(find ./output/ncbi_dump_clean/ -type d | wc -l)
 echo "non-empty files in output/ncbi_dump: $nfiles"
 
 echo "removing old tar"
