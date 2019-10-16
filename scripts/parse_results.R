@@ -2,12 +2,7 @@ args = commandArgs(T)
 
 # test args
 # args=c("./tmp5/ncbi_dump")
-# setwd("~/GitHub/sraFind")
 all_statuses <- c("Complete", "Draft", "All")
-#print("Options for filtering:")
-#print(all_statuses)
-#print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
-#print("Note that 'Contig' and 'Scaffold' are grouped together")
 if (!dir.exists(args[2])) dir.create(args[2])
 if( length(args) != 1 ){
   stop('USAGE: Rscript parse_results.R /path/to/ncbi_dump/')
@@ -16,7 +11,7 @@ db_path <- args[1]
 results_path = file.path(dirname(db_path), "parsed")
 if (!dir.exists(db_path)) stop(paste0("datababse directory ", db_path, " not found!"))
 if (length(dir(db_path)) == 0) stop(paste0("datababse directory ", db_path, " is empty!"))
-
+dir.create(results_path)
 
 destfile <-  "prokaryotes.txt"
 if(!file.exists(destfile)){
@@ -62,7 +57,7 @@ if (status == "Complete"){
 # print(paste("writing out", nrow(db), accs_col, "of the full", nrow(raw) ))
 # write.table(row.names = F, col.names = T, db, sep = "\t",
 #             file = file.path(args[2], paste0("sraFind-", status, "-prokaryotes.txt")))
-# 
+#
 
 ################################################################################
 ncbi_columns = c("Biosample", "Id", "Title", "Platform", "@instrument_model",  "Study@acc", "Organism@ScientificName", "Organism@taxid", "Bioproject", "CreateDate", "UpdateDate", "Run@acc", "Run@total_bases", "Run@is_public")
@@ -92,8 +87,9 @@ print("executing Entrez commands to extract relavant info from database")
 ncmds <- length(parse_cmds)
 for (i in 1:length(parse_cmds)){
     if (i %% 1000 == 0 ){print(paste("running cmd", i, "of", ncmds))}
-  #print(parse_cmds[i])
+    #cat(parse_cmds[i])
     system(parse_cmds[i])
+    #if (i  == 5) stop()
 }
 print("reading hits file")
 
@@ -121,7 +117,7 @@ colnames(hits) <- nice_column_no_run_headers
 # sort out the remaining columns
 table_b <-raw_hits[, c((length(nice_column_no_run_headers) + 1) : ncol(raw_hits))]
 hits$nSRAs = as.integer(rowSums("" != table_b & !is.na(table_b)) / 3)
-#               
+#
 #####    ---- Me ----                                 ----- Also Me  -----
 # dont do it!  There must be a better way!
 #                                                     Oh, Im doing it
