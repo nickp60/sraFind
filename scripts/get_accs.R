@@ -24,7 +24,7 @@ fetch_cmds <- paste0(
   "esearch -db biosample -query ", raw$BioSample.Accession, 
   #" | elink -target assembly | elink -target nuccore | esummary  |xtract -pattern DocumentSummary -element Caption | sort | head -n 1 > ",  file.path(ncbi_dir, raw$BioSample.Accession, "masterrec"),  " ; fi",
   " | elink -target nuccore | esummary  |xtract -pattern DocumentSummary -element Caption | sort | head -n 1 > ",  file.path(ncbi_dir, raw$BioSample.Accession, "masterrec"),  " ; fi ; ",
-  "if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession,  raw$BioSample.Accession), " ]; then ",
+  "if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession, paste0("*_", raw$BioSample.Accession)), " ]; then ",
   'esearch -db biosample -query ',  raw$BioSample.Accession, ' | ', # get the biosample record
   'elink -target sra | ',  # link it to the SRA database (or try to, it usually fails)
   'efilter -query "WGS[STRATEGY] AND Genomic[SOURCE]" |', # select only WGS datasets, to avoid transcriptomics
