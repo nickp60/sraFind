@@ -1,10 +1,11 @@
-args = commandArgs(T)
-library(tidyverse)
-# test args
-# args=c("./tmp5/ncbi_dump")
-#  args=c("./output/ncbi_dump_clean")
+library(dplyr)
+DEBUG <- F
+if (DEBUG){
+  args=c("./output/ncbi_dump_clean")
+} else {
+  args = commandArgs(T)
+}
 all_statuses <- c("Complete", "Draft", "All")
-#if (!dir.exists(args[2])) dir.create(args[2])
 if( length(args) != 1 ){
   stop('USAGE: Rscript parse_results.R /path/to/ncbi_dump/')
 }
@@ -44,148 +45,93 @@ db[, "nuccore_first_chrom"] <- ifelse(
 # raw$addn_no_plasmids <- gsub("plasmid.*$", "",  raw$addn_chroms)
 # # this one could be reopeated with a strip to keep selecting the last of them. You run into issues with CM008567.1-CM008588.1, cause some people just gotta be special
 # raw$addn_last <- gsub(".*chromosome .+?:(.*?)[/.*?;$]", "\\1",  raw$addn_no_plasmids[60])
-status <- "All"
-if (status == "Complete"){
-  accs_col = "nuccore_first_chrom"
-  db<- db[db$nuccore_first_chrom != "",]
-} else if (status == "All"){
-  accs_col = "Assembly.Accession"
-} else if(status == "Draft"){
-  accs_col = "Assembly.Accession"
-  db <- db[db$Status %in% c("Contig", "Scaffold"), ]
-}
 
-# print(paste("writing out", nrow(db), accs_col, "of the full", nrow(raw) ))
-# write.table(row.names = F, col.names = T, db, sep = "\t",
-#             file = file.path(args[2], paste0("sraFind-", status, "-prokaryotes.txt")))
-#
-
-################################################################################
-ncbi_columns = c("Biosample", "Id", "Title", "Platform", "@instrument_model",  "Study@acc", "Organism@ScientificName", "Organism@taxid", "Bioproject", "CreateDate", "UpdateDate", "Run@acc", "Run@total_bases", "Run@is_public")
-nice_column_no_run_headers = c("biosample",  "id", "title", "platform",  "instrument_model", "study_acc", "organism_ScientificName", "organism_taxid", "bioproject", "runCreateDate", "runUpdateDate")
+ncbi_columns = c("Biosample", "Id", "Title", "Platform", "@instrument_model",  
+                 "Study@acc", "Organism@ScientificName", "Organism@taxid", "Bioproject", 
+                 "CreateDate", "UpdateDate", "Run@acc", "Run@total_bases", "Run@is_public")
+nice_column_no_run_headers = c("biosample",  "id", "title", "platform",  "instrument_model", 
+                               "study_acc", "organism_ScientificName", "organism_taxid", "bioproject",
+                               "runCreateDate", "runUpdateDate")
 
 print("determining which biosamples have hits in the DB")
-db_files <- data.frame(path=dir(db_path, recursive = T), stringsAsFactors = F) %>%
-  mutate(thisdir=gsub("(.*)\\/(.*)",  "\\1", path),
-         thisfile=gsub("(.*)\\/(.*)",  "\\2", path)) %>% 
-  group_by(thisdir) %>%
-  mutate(has_master = any(thisfile == "masterrec"),
-         has_sra = any(thisfile != "masterrec")) %>%
-  ungroup() %>%
-  select(thisdir, has_master, has_sra)  %>%
-  distinct()
-
+db_files_with_sras <- dir(db_path)
 biosample_hits <- file.path(results_path, "hits.txt")
 
-print(paste("Of the", nrow(db), " prokaryotes, ", table(db_files$has_master)[[2]], 
-            "have identified mastter sequence records, and", table(db_files$has_sra)[[2]],
+print(paste("Of the", nrow(db), " prokaryotes, ", length(db_files_with_sras),
             "have SRA links" ))
 
-if (file.exists(biosample_hits)){
+if (file.exists(biosample_hits) & ! DEBUG){
   print("removing old hits file")
   file.remove(biosample_hits)
 }
 
-### make masterred df
-#system('for i in output/ncbi_dump_clean/*/masterrec; do tmp=$(dirname $i); tmp2=`cat $i`; echo -e "$tmp\t$ttmp2" >> masters ; done')
-all_master_recs <- read.csv("masters", sep="\t", stringsAsFactors = F)
-# all_master_recs <- data.frame(BioSample=character(),
-#                               master=character(), 
-#                               stringsAsFactors=FALSE)
-# for (i in 1:nrow(db_files)){
-#   if (db_files$has_master[i]){
-#     if (i %% 1000 == 0) print(i)
-#     thismaster <- readLines(file.path(db_path,  db_files$thisdir[i], "masterrec"), n=1)
-#     all_master_recs <- rbind(
-#       all_master_recs,
-#       data.frame(master=thismaster, BioSample=db_files$thisdir[i] ))
-#   }
-# }
-db_files_with_sras <- db_files[db_files$has_sra, ]
 print("creating Entrez parsing cmds")
 cmds <- c()
-parse_cmds <- paste0("cat ",  file.path(db_path, db_files_of_interest), '| xtract ',  # use NCBI's tool get tabular data from XML, such as the following colimns
-                     '-pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
-                     ' >> ' , biosample_hits, "; done")
+parse_cmds <- paste0('cat ',  file.path(db_path, db_files_with_sras), ' | xtract ',  # use NCBI's tool get tabular data from XML, such as the following colimns
+                     ' -pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
+                     ' >> ' , biosample_hits)
+# this makes the run data comma-sparated
+parse_cmds <- gsub('Run@acc', '-sep "," -element Run@acc', parse_cmds, fixed=T)
 print("executing Entrez commands to extract relavant info from database")
-ncmds <- length(parse_cmds)
-for (i in 1:length(parse_cmds)){
+if (DEBUG){
+  ncmds = 200
+} else{
+  ncmds <- length(parse_cmds)
+}
+  
+for (i in 1:ncmds){
     if (i %% 1000 == 0 ){print(paste("running cmd", i, "of", ncmds))}
-    #cat(parse_cmds[i])
+    if (DEBUG) cat(parse_cmds[i], sep = "\n")
     system(parse_cmds[i])
-    #if (i  == 5) stop()
 }
 print("reading hits file")
 
-
-# we have to allow the last columns to be shaggy to account for biosamples with multiple SRAsand lop them off after the fact.  Most, as we can see heree, have 13 columns.  That is for 1 SRA, size, and availability.  if we have, say, 40, which means we have 9 SRAs, 9 sizes, and 9 availabilities
-
-#biosample_hits <- "./output/hits.txt"
-max_fields = max(count.fields(biosample_hits, sep="\t", skip = 0,
-                              blank.lines.skip = TRUE, comment.char = "#"), na.rm = T)
-# min_fields = min(count.fields(biosample_hits, sep="\t", skip = 0,
-#                               blank.lines.skip = TRUE, comment.char = "#"))
-# table(count.fields(biosample_hits, sep="\t", skip = 0,
-#                    blank.lines.skip = TRUE, comment.char = "#"))
-
-raw_hits <- read.csv2(biosample_hits, sep="\t", header=F, fill = T, col.names  = paste(c(1:(max_fields))), stringsAsFactors = F)
-
-
-print("making run data comma-separated")
-
-hits <-raw_hits[, c(1:length(nice_column_no_run_headers))]
-colnames(hits) <- nice_column_no_run_headers
-
-
-# sort out the remaining columns
-# sort out the remaining columns
-table_b <-raw_hits[, c((length(nice_column_no_run_headers) + 1) : ncol(raw_hits))]
-hits$nSRAs = as.integer(rowSums("" != table_b & !is.na(table_b)) / 3)
-#
-#####    ---- Me ----                                 ----- Also Me  -----
-# dont do it!  There must be a better way!
-#                                                     Oh, Im doing it
-# but you know the speed tradeoffs of loops in R!
-#                                                   *stubs out cigarette* vectorize /this/
-
-for (i in c(1:nrow(hits))){
-  nSRAs <- hits[i, "nSRAs"]
-  # if(i==1) break
-  hits[i, "run_SRAs"] <- paste(table_b[i, c(1:nSRAs)], collapse=",")
-  hits[i, "run_sizes"] <- paste(table_b[i, c((nSRAs + 1):(2*nSRAs))], collapse=",")
-  hits[i, "run_publicities"] <- paste(table_b[i, c((2* nSRAs + 1):(3*nSRAs))], collapse=",")
-
-}
+hits <- read.csv2(
+  biosample_hits, sep="\t", header=F, fill = T, 
+  col.names  = c(nice_column_no_run_headers,
+                 "run_SRAs", "run_sizes", "run_publicities"), 
+  stringsAsFactors = F)
 
 print("checking for missing fields")
-####  here we desal with issues where the organisms scientific name was mangled/missing, resulting in a missing column.  Luckily, this only happens in a few cases, but we do need to bump these out a row.  We can (semi) easily detect them by their scientific name being numeric
-bad_sci_names <- hits[grepl("^\\d*$", hits$organism_ScientificName), ]
+####  here we desal with issues where the organisms scientific name was mangled/missing, 
+####  resulting in a missing column.  Luckily, this only happens in a few cases, but 
+####  we do need to bump these out a row.  We can (semi) easily detect them by their 
+####  scientific name being numeric
+hits$exclusion <- ifelse(
+  !startsWith(x =  hits$biosample, "SAM"), "malformed biosample",
+  #remove those with bad biosample names, starting with digits
+  ifelse(startsWith(x = hits$organism_taxid, "PRJ"), "malformed organism",  ""))
+
+table(hits$exclusion)
+
 #remove those from the full dataset
-hits <- hits[!grepl("^\\d*$", hits$organism_ScientificName), ]
+good_sci_names <- hits[hits$exclusion == "", ]
+bad_sci_names <- hits[hits$exclusion == "malformed organism", ]
 # put this back together with "unknown" as sci name
 bad_sci_names <- cbind(bad_sci_names[, c(1:6)], rep("Unknown", nrow(bad_sci_names)), bad_sci_names[, c(7:14), ])
 # fix borked col names
-colnames(bad_sci_names) <- c(nice_column_no_run_headers, "nSRAs", "run_SRAs", "run_sizes","run_publicities")
+colnames(bad_sci_names) <- c(nice_column_no_run_headers, "run_SRAs", "run_sizes","run_publicities", "exclusion")
 # put humpty back together
-hits <- rbind(hits, bad_sci_names)
+pre_fixedhits <- rbind(good_sci_names, bad_sci_names)
 
 # did we miss any?
-bad_bioproject <- !grepl("^PRJ.*$", hits$bioproject)
+bad_hits <- rbind(
+  pre_fixedhits[!grepl("^PRJ.*$", pre_fixedhits$bioproject), ],
+  hits[hits$exclusion == "malformed biosample", ]
+)
+pre_fixedhits$exclusion <- NULL
 
-print("writing dodgy rows to parsing_errors.txt")
-
-hits <- hits[!bad_bioproject, ]
+fixedhits <-  pre_fixedhits[grepl("^PRJ.*$", pre_fixedhits$bioproject), ]
+print(paste("writing", nrow(bad_hits),  "dodgy rows to parsing_errors.txt"))
 
 # add in accession name
-fs <- data.frame(raw=db_files, stringsAsFactors = F)
-fs$biosample <- gsub("(.*)_(.*)", "\\2", fs$raw)
-fs$WGS_record <- gsub("(.*)_(.*)", "\\1", fs$raw)
-hit <- merge(hits,fs, by="biosample")
-write.table(row.names = F, col.names = T,  hits[bad_bioproject, ], sep = "\t",
+write.table(row.names = F, col.names = T, bad_hits, sep = "\t",
             file = file.path(results_path, paste0("parsing_errors.txt")))
 
 
-all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Status", "nuccore_first_chrom", "Release.Date", "Modify.Date")], hits, by.x="BioSample.Accession", by.y="biosample", all.x = T)
+all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Status", "nuccore_first_chrom", "WGS", "Release.Date", "Modify.Date")], 
+                        fixedhits, by.x="BioSample.Accession", by.y="biosample", 
+                        all.x = T)
 print("writing out parsed")
 # order them to make diffing easier
 write.table(row.names = F, col.names = T, all_biosamples[order(all_biosamples$BioSample.Accession), ], sep = "\t",

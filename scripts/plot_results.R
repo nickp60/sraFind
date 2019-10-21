@@ -23,7 +23,7 @@ ggplot2::theme_set(ggplot2::theme_minimal() + ggplot2::theme(
 args = commandArgs(T)
 
 # test args
-#args=c("./results/sraFind-CompleteGenome-biosample-with-SRA-hits.txt", "./tmp_results/", "All")
+#args=c("sraFind.tab", "./tmp_results/", "All")
 # setwd("~/GitHub/sraFind")
 print("Note that 'Complete Genome' and 'Chromosome' level assemblies includes results for any with at least 1 chromosomal replicon, as these end up being used interchangably for microbes")
 print("Note that 'Contig' and 'Scaffold' are grouped together as 'Draft'")
