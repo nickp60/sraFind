@@ -1,9 +1,10 @@
 args = commandArgs(T)
-
+library(tidyverse)
 # test args
 # args=c("./tmp5/ncbi_dump")
+#  args=c("./output/ncbi_dump_clean")
 all_statuses <- c("Complete", "Draft", "All")
-if (!dir.exists(args[2])) dir.create(args[2])
+#if (!dir.exists(args[2])) dir.create(args[2])
 if( length(args) != 1 ){
   stop('USAGE: Rscript parse_results.R /path/to/ncbi_dump/')
 }
@@ -63,26 +64,49 @@ if (status == "Complete"){
 ncbi_columns = c("Biosample", "Id", "Title", "Platform", "@instrument_model",  "Study@acc", "Organism@ScientificName", "Organism@taxid", "Bioproject", "CreateDate", "UpdateDate", "Run@acc", "Run@total_bases", "Run@is_public")
 nice_column_no_run_headers = c("biosample",  "id", "title", "platform",  "instrument_model", "study_acc", "organism_ScientificName", "organism_taxid", "bioproject", "runCreateDate", "runUpdateDate")
 
-##
 print("determining which biosamples have hits in the DB")
-db_files <- dir(db_path, recursive = T)
-db_files_of_interest <- db_files[gsub("(.*)/(.*)", "\\2", db_files) %in% db$BioSample.Accession]
-
+db_files <- data.frame(path=dir(db_path, recursive = T), stringsAsFactors = F) %>%
+  mutate(thisdir=gsub("(.*)\\/(.*)",  "\\1", path),
+         thisfile=gsub("(.*)\\/(.*)",  "\\2", path)) %>% 
+  group_by(thisdir) %>%
+  mutate(has_master = any(thisfile == "masterrec"),
+         has_sra = any(thisfile != "masterrec")) %>%
+  ungroup() %>%
+  select(thisdir, has_master, has_sra)  %>%
+  distinct()
 
 biosample_hits <- file.path(results_path, "hits.txt")
 
-print(paste0("Of the ", nrow(db), " biosamples of level ", status,  ", ", length(db_files_of_interest),
-            " have SRA links in the current database of ",nrow(raw) ))
+print(paste("Of the", nrow(db), " prokaryotes, ", table(db_files$has_master)[[2]], 
+            "have identified mastter sequence records, and", table(db_files$has_sra)[[2]],
+            "have SRA links" ))
 
 if (file.exists(biosample_hits)){
   print("removing old hits file")
   file.remove(biosample_hits)
 }
+
+### make masterred df
+#system('for i in output/ncbi_dump_clean/*/masterrec; do tmp=$(dirname $i); tmp2=`cat $i`; echo -e "$tmp\t$ttmp2" >> masters ; done')
+all_master_recs <- read.csv("masters", sep="\t", stringsAsFactors = F)
+# all_master_recs <- data.frame(BioSample=character(),
+#                               master=character(), 
+#                               stringsAsFactors=FALSE)
+# for (i in 1:nrow(db_files)){
+#   if (db_files$has_master[i]){
+#     if (i %% 1000 == 0) print(i)
+#     thismaster <- readLines(file.path(db_path,  db_files$thisdir[i], "masterrec"), n=1)
+#     all_master_recs <- rbind(
+#       all_master_recs,
+#       data.frame(master=thismaster, BioSample=db_files$thisdir[i] ))
+#   }
+# }
+db_files_with_sras <- db_files[db_files$has_sra, ]
 print("creating Entrez parsing cmds")
-parse_cmds <- paste0("OLDIFS=$IFS; IFS=$'\n'; tmpnm=`cat ", file.path(db_path, dirname(db_files_of_interest), "masterrec"), " |tr -d '\n'` ; for line in ",
-                     '` cat ',  file.path(db_path, db_files_of_interest), '| xtract ',  # use NCBI's tool get tabular data from XML, such as the following colimns
+cmds <- c()
+parse_cmds <- paste0("cat ",  file.path(db_path, db_files_of_interest), '| xtract ',  # use NCBI's tool get tabular data from XML, such as the following colimns
                      '-pattern DocumentSummary -element ', paste(ncbi_columns, collapse=" "),
-                     '` ;  do echo "${tmpnm}\t${line}" >> ' , biosample_hits, "; done;  IFS=$OLDIFS")
+                     ' >> ' , biosample_hits, "; done")
 print("executing Entrez commands to extract relavant info from database")
 ncmds <- length(parse_cmds)
 for (i in 1:length(parse_cmds)){
@@ -165,4 +189,4 @@ all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Sta
 print("writing out parsed")
 # order them to make diffing easier
 write.table(row.names = F, col.names = T, all_biosamples[order(all_biosamples$BioSample.Accession), ], sep = "\t",
-            file = file.path(results_path, paste0("sraFind-", status, "-biosample-with-SRA-hits.txt")))
+            file = "sraFind.tab")
