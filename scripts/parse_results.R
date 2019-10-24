@@ -128,7 +128,7 @@ print(paste("writing", nrow(bad_hits),  "dodgy rows to parsing_errors.txt"))
 write.table(row.names = F, col.names = T, bad_hits, sep = "\t",
             file = file.path(results_path, paste0("parsing_errors.txt")))
 
-
+db <- db[grepl("^SAM.*", db$BioSample.Accession),  ]
 all_biosamples <- merge(db[, c("BioSample.Accession", "Assembly.Accession", "Status", "nuccore_first_chrom", "WGS", "Release.Date", "Modify.Date")], 
                         fixedhits, by.x="BioSample.Accession", by.y="biosample", 
                         all.x = T)
