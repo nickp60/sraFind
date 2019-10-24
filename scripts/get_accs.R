@@ -5,6 +5,7 @@ args = commandArgs(T)
 # setwd("~/GitHub/sraFind")
 
 print('USAGE: Rscript get_accs.R  /path/to/output/dir/')
+if (length(args) != 1)  stop('USAGE: Rscript get_accs.R  /path/to/output/dir/')
 if (!dir.exists(args[1])) dir.create(args[1])
 
 destfile="prokaryotes.txt"
@@ -16,6 +17,13 @@ if(!file.exists(destfile)){
 print("Reading prokaryotes.txt ")
 raw <- read.csv(destfile, header=T, sep="\t", stringsAsFactors=FALSE)
 
+rejects<- !grepl("^SAM", raw$BioSample.Accession)
+
+reject_df  <- raw[rejects, ]
+print("rejecting the following lines with non-standard biosample accessions")
+print(reject_df)
+raw <- raw[!rejects, ]
+
 ncbi_dir <- file.path(args[1], "ncbi_dump")
 dir.create(ncbi_dir)
 fetch_cmds <- paste0(
@@ -23,7 +31,8 @@ fetch_cmds <- paste0(
   #"if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession, "masterrec"), " ] ; then ",
   #"esearch -db biosample -query ", raw$BioSample.Accession, 
   #" | elink -target nuccore | esummary  |xtract -pattern DocumentSummary -element Caption | sort | head -n 1 > ",  file.path(ncbi_dir, raw$BioSample.Accession, "masterrec"),  " ; fi ; ",
-  "if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession), " ]; then ",
+# tried -s for empty files,but it adds  a lot of time to execution
+"if [ ! -f ", file.path(ncbi_dir, raw$BioSample.Accession), " ]; then ",
   'esearch -db biosample -query ',  raw$BioSample.Accession, ' | ', # get the biosample record
   'elink -target sra | ',  # link it to the SRA database (or try to, it usually fails)
   'efilter -query "WGS[STRATEGY] AND Genomic[SOURCE]" |', # select only WGS datasets, to avoid transcriptomics
